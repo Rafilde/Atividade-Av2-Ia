@@ -15,9 +15,9 @@ plt.ylabel('Potência Normalizada')
 plt.legend()
 plt.show() 
 
-# MODELO ANALINE-------------------------------------------------
+# ------------------------------------------------------------------------------------
 
-# NORMALIZANDO OS DADOS ----------
+# NORMALIZANDO OS DADOS em escala ----------
 
 speed_min = speed.min()
 speed_max = speed.max()
@@ -45,5 +45,72 @@ y_test = power_norm[test_idx]
 
 X_train = np.hstack([np.full((X_train.shape[0], 1), -1), X_train])  
 X_test = np.hstack([np.full((X_test.shape[0], 1), -1), X_test])
+
+# ---------------------------------
+
+# MODELO ANALINE-------------------------------------------------
+
+# ALGORITMO ADALINE (Treinamento) ----------
+
+def train_adaline(X, d, eta, max_epochs, epsilon):
+    N, n = X.shape  
+    w = np.random.uniform(-0.1, 0.1, n)  
+    epoch = 0
+    EQM_previous = 0
+
+    while True:
+
+        u = X @ w  
+        y = u  
+        EQM = np.sum((d - u) ** 2) / N  
+        
+        
+        if epoch > 0 and abs(EQM - EQM_previous) <= epsilon or epoch >= max_epochs:
+            break
+
+        
+        for t in range(N):
+            u_t = X[t] @ w  
+            y_t = u_t  
+            w += eta * (d[t] - u_t) * X[t]  
+
+        EQM_previous = EQM
+        epoch += 1
+
+    return w, epoch, EQM
+
+# ---------------------------------
+
+# ALGORITMO ADALINE (Teste) ----------
+
+def test_adaline(X, w):
+    u = X @ w  
+    y = u  
+    return y
+
+# ---------------------------------
+
+# Hiperparâmetros que escolho ----------
+
+eta = 0.01  # Taxa de aprendizado
+max_epochs = 1000  # Número máximo de épocas
+epsilon = 1e-5  # Precisão para early stopping
+
+# ---------------------------------
+# Treinar o modelo ----------
+
+w, epochs, EQM_final = train_adaline(X_train, y_train, eta, max_epochs, epsilon)
+print(f"Treinamento concluído em {epochs} épocas. EQM final: {EQM_final:.6f}")
+print(f"Pesos finais: {w}")
+
+# ---------------------------------
+# Testar o modelo ----------
+
+y_pred = test_adaline(X_test, w)
+
+# Calcular EQM no conjunto de teste
+EQM_test = np.mean((y_test - y_pred) ** 2)
+print(f"EQM no conjunto de teste: {EQM_test:.6f}")
+
 
 # ---------------------------------
