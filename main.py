@@ -216,3 +216,109 @@ EQM_test_mlp = np.mean((y_test.flatten() - y_pred_mlp) ** 2)
 print(f"EQM no conjunto de teste (MLP): {EQM_test_mlp:.6f}")
 
 # ---------------------------------
+
+# ALGORITMO MLP ----------
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+def sigmoid_derivative(x):
+    return x * (1 - x)
+
+def train_mlp(X_train, y_train, X_test, y_test, L, q, eta, max_epochs):
+    n_inputs = X_train.shape[1]
+    n_outputs = 1
+    W = [None] * (L + 1)
+    y = [None] * (L + 2)
+    v = [None] * (L + 1)
+    
+    W[0] = np.random.uniform(-0.5, 0.5, (n_inputs, q[0]))
+    for l in range(1, L):
+        W[l] = np.random.uniform(-0.5, 0.5, (q[l-1], q[l]))
+    W[L] = np.random.uniform(-0.5, 0.5, (q[-1], n_outputs))
+    
+    train_eqms = []
+    test_eqms = []
+    
+    for epoch in range(max_epochs):
+        EQM_train = 0
+        for i in range(len(X_train)):
+            X_sample = X_train[i].reshape(-1, 1)
+            d = y_train[i].reshape(-1, 1)
+            
+            y[0] = X_sample
+            for l in range(L + 1):
+                v[l] = W[l].T @ y[l]
+                y[l + 1] = sigmoid(v[l])
+            
+            EQM_train += np.sum((d - y[L + 1]) ** 2)
+            
+            delta = [None] * (L + 2)
+            delta[L + 1] = (d - y[L + 1]) * sigmoid_derivative(y[L + 1])
+            for j in range(L - 1, -1, -1):
+                delta[j + 1] = (W[j + 1] @ delta[j + 2]) * sigmoid_derivative(y[j + 1])
+            
+            for l in range(L + 1):
+                W[l] += eta * (y[l] @ delta[l + 1].T)
+        
+        EQM_train = EQM_train / (2 * len(X_train))
+        train_eqms.append(EQM_train)
+        
+        y_pred = np.zeros(len(X_test))
+        for i in range(len(X_test)):
+            X_sample = X_test[i].reshape(-1, 1)
+            y[0] = X_sample
+            for l in range(L + 1):
+                v[l] = W[l].T @ y[l]
+                y[l + 1] = sigmoid(v[l])
+            y_pred[i] = y[L + 1].item()
+        EQM_test = np.mean((y_test.flatten() - y_pred) ** 2)
+        test_eqms.append(EQM_test)
+    
+    return train_eqms, test_eqms
+
+# ---------------------------------
+
+# Configurações para underfitting e overfitting ----------
+configs = [
+    {"L": 1, "q": [2], "title": "Underfitting (1 camada, 2 neurônios)"},  # Subdimensionado
+    {"L": 2, "q": [50, 50], "title": "Overfitting (2 camadas, 50 neurônios)"},  # Superdimensionado
+]
+
+# ---------------------------------
+
+# Hiperparâmetros ----------
+
+eta_mlp = 0.01
+max_epochs_mlp = 1000
+
+# ---------------------------------
+
+# Resultados ----------
+
+plt.figure(figsize=(12, 5))
+for idx, config in enumerate(configs):
+    train_eqms, test_eqms = train_mlp(X_train, y_train, X_test, y_test, 
+                                      config["L"], config["q"], eta_mlp, max_epochs_mlp)
+    
+    plt.subplot(1, 2, idx + 1)
+    plt.plot(train_eqms, label='EQM Treino', color='blue')
+    plt.plot(test_eqms, label='EQM Teste', color='red')
+    plt.title(config["title"])
+    plt.xlabel('Época')
+    plt.ylabel('EQM')
+    plt.legend()
+    plt.grid(True)
+
+plt.tight_layout()
+plt.savefig('learning_curves.png')
+plt.show()
+
+for config in configs:
+    train_eqms, test_eqms = train_mlp(X_train, y_train, X_test, y_test, 
+                                      config["L"], config["q"], eta_mlp, max_epochs_mlp)
+    print(f"\nTopologia: {config['title']}")
+    print(f"EQM final (treino): {train_eqms[-1]:.6f}")
+    print(f"EQM final (teste): {test_eqms[-1]:.6f}")
+    
+# ---------------------------------
